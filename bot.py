@@ -127,6 +127,7 @@ def main():
                 continue
             # Если обратились к боту
             if text and BOT_NAME in text[0].lower():
+                # Если команда "добавить"
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     phrase = ' '.join(text[2:])
                     rewrite_file(phrase, bot.bot_phrases)
