@@ -49,6 +49,12 @@ def request_df(token, text):
         return 'Я Вас не совсем понял!'
 
 
+def rewrite_file(phrase, bot_phrases):
+    with open('phrases.txt', 'a', encoding='utf8') as f:
+        f.write(phrase)
+        bot_phrases.append(phrase)
+
+
 def captcha_handler(captcha):
     """ 
     При возникновении капчи вызывается эта функция и ей передается объект
@@ -123,7 +129,11 @@ def main():
             if text and BOT_NAME in text[0].lower():
                 message = ' '.join(text[1:])
                 phrase = request_df(bot.token, text)
-                bot.send_message(chat_id, phrase)
+                if len(text) > 2 and 'добавь' in text[1].lower():
+                    text_to_add = ' '.join(text[2:])
+                    rewrite_file(text_to_add, bot.bot_phrases)
+                else:
+                    bot.send_message(chat_id, phrase)
             else:              
                 if not user_id in bot.shitposters:
                     bot.shitposters[user_id] = Shitposter(user_id, msg_time)
