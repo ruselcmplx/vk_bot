@@ -130,10 +130,10 @@ def main():
                 # Если команда "добавить"
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     phrase = ' '.join(text[2:])
-                    if not BOT_NAME in phrase.lower()
-                    rewrite_file(phrase, bot.bot_phrases)
-                    affirmation = '[id'+author+'|Филтан], я добавил: "'+phrase+'"'
-                    bot.send_message(chat_id, affirmation)
+                    if not BOT_NAME in phrase.lower():
+                        rewrite_file(phrase, bot.bot_phrases)
+                        affirmation = '[id'+author+'|Филтан], я добавил: "'+phrase+'"'
+                        bot.send_message(chat_id, affirmation)
                 else:
                     message = ' '.join(text[1:])
                     phrase = request_df(bot.token, message)
