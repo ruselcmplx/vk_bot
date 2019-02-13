@@ -134,7 +134,7 @@ def main():
                         user.shitpost_count = 0
                     if user.shitpost_count >= 7:
                         phrase = random.choice(bot.bot_phrases)
-                        bot.send_message(2000000000 + chat_id, phrase)
+                        bot.send_message(chat_id, phrase)
                         dt = strftime("%d.%m.%Y %H:%M:%S", localtime())
                         print(dt + ' / ' + str(user.user_id) + ' shitposted in chat #' + str(chat_id) + '!')
                         user.shitpost_count = 0
