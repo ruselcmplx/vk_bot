@@ -125,10 +125,10 @@ def main():
                 phrase = request_df(bot.token, text)
                 bot.send_message(chat_id, phrase)
             else:              
-                if not user_id in shitposters:
-                    shitposters[user_id] = Shitposter(user_id, msg_time)
+                if not user_id in bot.shitposters:
+                    bot.shitposters[user_id] = Shitposter(user_id, msg_time)
                 else:
-                    user = shitposters[user_id]
+                    user = bot.shitposters[user_id]
                     if msg_time - user.first_msg_time > 180:
                         user.first_msg_time = msg_time
                         user.shitpost_count = 0
