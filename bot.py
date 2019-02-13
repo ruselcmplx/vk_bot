@@ -123,7 +123,7 @@ def main():
             if text and BOT_NAME in text[0].lower():
                 message = ' '.join(text[1:])
                 phrase = request_df(bot.token, text)
-                bot.send_message(chat_id, phrase)"
+                bot.send_message(chat_id, phrase)
             else:              
                 if not user_id in shitposters:
                     shitposters[user_id] = Shitposter(user_id, msg_time)
