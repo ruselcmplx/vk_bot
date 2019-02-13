@@ -132,7 +132,7 @@ def main():
                     phrase = ' '.join(text[2:])
                     rewrite_file(phrase, bot.bot_phrases)
                     affirmation = '[id'+author+'|Филтан], я добавил: "'+phrase+'"'
-                    bot.send_message(chat_id, phrase)
+                    bot.send_message(chat_id, affirmation)
                 else:
                     phrase = request_df(bot.token, text)
                     bot.send_message(chat_id, phrase)
