@@ -51,7 +51,7 @@ def request_df(token, text):
 
 def rewrite_file(phrase, bot_phrases):
     with open('phrases.txt', 'a', encoding='utf8') as f:
-        f.write(phrase)
+        f.write(phrase+'\n')
         bot_phrases.append(phrase)
 
 
@@ -129,6 +129,7 @@ def main():
             if text and BOT_NAME in text[0].lower():
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     phrase = ' '.join(text[2:])
+                    if not BOT_NAME in phrase.lower()
                     rewrite_file(phrase, bot.bot_phrases)
                     affirmation = '[id'+author+'|Филтан], я добавил: "'+phrase+'"'
                     bot.send_message(chat_id, affirmation)
