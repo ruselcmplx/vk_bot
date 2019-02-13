@@ -127,14 +127,14 @@ def main():
                 continue
             # Если обратились к боту
             if text and BOT_NAME in text[0].lower():
-                message = ' '.join(text[1:])
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     phrase = ' '.join(text[2:])
                     rewrite_file(phrase, bot.bot_phrases)
                     affirmation = '[id'+author+'|Филтан], я добавил: "'+phrase+'"'
                     bot.send_message(chat_id, affirmation)
                 else:
-                    phrase = request_df(bot.token, text)
+                    message = ' '.join(text[1:])
+                    phrase = request_df(bot.token, message)
                     bot.send_message(chat_id, phrase)
             else:              
                 if not user_id in bot.shitposters:
