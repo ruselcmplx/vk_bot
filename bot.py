@@ -60,17 +60,6 @@ def captcha_handler(captcha):
 
     # Пробуем снова отправить запрос с капчей
     return captcha.try_again(key)
-    
-
-def rewrite_file(phrase):
-    existing_lines = None
-    with open('phrases.txt', 'r', encoding='utf8') as f:
-        existing_lines = f.readlines()
-        f.close()
-    with open('phrases.txt','a',encoding='utf8') as f:
-        if phrase not in existing_lines:
-            f.write(phrase+'\n')
-        f.close()
 
 
 class Shitposter():
@@ -132,58 +121,10 @@ def main():
                 continue
             # Если обратились к боту
             if text and BOT_NAME in text[0].lower():
-                text = ' '.join(text[1:])
-                #phrase = random.choice(bot.bot_phrases)
+                message = ' '.join(text[1:])
                 phrase = request_df(bot.token, text)
-                bot.send_message(chat_id, phrase)
-                """
-                try:
-                    command = text.split()[1]
-                except:
-                    api.messages.send(
-                        peer_id = 2000000000 + chat_id,
-                        chat_id = chat_id,
-                        message='Чего те надо?'
-                    )
-                    continue
-                command_end_pos = len(command)+text.find(command)
-                command_text = text[command_end_pos+1:].lstrip()
-                """
-                """
-                if 'добавь' in command:
-                    phrase = command_text
-                    if BOT_NAME in phrase.lower():
-                        api.messages.send(
-                            peer_id = 2000000000 + chat_id,
-                            chat_id = chat_id,
-                            message='Ой, иди нахуй, еще бота ломать он будет'
-                        )
-                        continue
-                    if int(chat_id) != 2:
-                        phrase = random.choice(bot_phrases)
-                        api.messages.send(
-                            peer_id = 2000000000 + chat_id,
-                            chat_id = chat_id,
-                            message=phrase
-                        )
-                        continue
-                    bot_phrases.append(phrase)
-                    rewrite_file(phrase)
-                    api.messages.send(
-                        peer_id = 2000000000 + chat_id,
-                        chat_id = chat_id,
-                        message='[id'+author+'|Филтан], я добавил: "'+phrase+'"'
-                    )
-                elif 'и че' in text:
-                    api.messages.send(
-                        peer_id = 2000000000 + chat_id,
-                        chat_id = chat_id,
-                        message='Хуй в оче'
-                    )
-                else:
-                    continue
-                """
-            """else:              
+                bot.send_message(chat_id, phrase)"
+            else:              
                 if not user_id in shitposters:
                     shitposters[user_id] = Shitposter(user_id, msg_time)
                 else:
@@ -192,18 +133,12 @@ def main():
                         user.first_msg_time = msg_time
                         user.shitpost_count = 0
                     if user.shitpost_count >= 7:
-                        phrase = random.choice(bot_phrases)
-                        attachment = 'photo313496628_456239027' if 'ыздорав' in phrase else None
-                        api.messages.send(
-                            peer_id = 2000000000 + chat_id,
-                            chat_id = chat_id,
-                            message=phrase,
-                            attachment=attachment
-                        )
+                        phrase = random.choice(bot.bot_phrases)
+                        bot.send_message(2000000000 + chat_id, phrase)
                         dt = strftime("%d.%m.%Y %H:%M:%S", localtime())
                         print(dt + ' / ' + str(user.user_id) + ' shitposted in chat #' + str(chat_id) + '!')
                         user.shitpost_count = 0
-                    user.inc_counter()"""
+                    user.inc_counter()
 
 
 if __name__ == "__main__":
