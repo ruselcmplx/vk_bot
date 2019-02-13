@@ -128,11 +128,11 @@ def main():
             # Если обратились к боту
             if text and BOT_NAME in text[0].lower():
                 message = ' '.join(text[1:])
-                phrase = request_df(bot.token, text)
                 if len(text) > 2 and 'добавь' in text[1].lower():
-                    text_to_add = ' '.join(text[2:])
+                    phrase = ' '.join(text[2:])
                     rewrite_file(text_to_add, bot.bot_phrases)
                 else:
+                    phrase = request_df(bot.token, text)
                     bot.send_message(chat_id, phrase)
             else:              
                 if not user_id in bot.shitposters:
