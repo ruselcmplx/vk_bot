@@ -130,7 +130,7 @@ def main():
                 message = ' '.join(text[1:])
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     phrase = ' '.join(text[2:])
-                    rewrite_file(text_to_add, bot.bot_phrases)
+                    rewrite_file(phrase, bot.bot_phrases)
                 else:
                     phrase = request_df(bot.token, text)
                     bot.send_message(chat_id, phrase)
