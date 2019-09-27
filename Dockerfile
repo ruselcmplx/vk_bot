@@ -1,7 +1,11 @@
 FROM python:3
 
-ADD bot.py creds.json phrases.txt /
+ADD requirements.txt /requirements.txt
 
-RUN pip install apiai vk_api
+RUN pip install -r requirements.txt
+
+ADD bot.py /
+
+ENV TZ=Europe/Moscow
 
 CMD [ "python", "./bot.py" ]

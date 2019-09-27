@@ -1,5 +1,6 @@
 import apiai
 import json
+import os
 import random
 from time import localtime, strftime, sleep
 import vk_api
@@ -17,8 +18,6 @@ def get_session(token):
     """
 
     try:
-        creds = json.loads(open('creds.json', 'r').read())
-        token = creds['vk_token']
         session = vk_api.VkApi(token=token)
         print('Authorised succesfully!')
         return session
@@ -32,7 +31,7 @@ def get_credentials():
         creds: Объект с данными для авторизации.
     """
 
-    return json.loads(open('creds.json', 'r', encoding='utf-8').read())
+    return json.loads(open('./mnt/creds.json', 'r', encoding='utf-8').read())
 
 
 def request_df(token, text):
@@ -67,7 +66,7 @@ def rewrite_file(phrase, bot_phrases):
         phrase: Новая фраза.
         bot_phrases: Загруженные фразы.
     """
-    with open('phrases.txt', 'a', encoding='utf8') as f:
+    with open('./mnt/phrases.txt', 'a', encoding='utf8') as f:
         f.write(phrase+'\n')
         bot_phrases.append(phrase)
 
@@ -92,7 +91,7 @@ class BOT():
         self.token = creds.get('df_token')
         self.name = creds.get('name')
         self.shitposters = {}
-        with open('phrases.txt', encoding='utf8') as f:
+        with open('./mnt/phrases.txt', encoding='utf8') as f:
             self.phrases = f.readlines()
 
     def add_phrase(self, author, text):
@@ -142,7 +141,7 @@ def main():
                 # Если обратились к боту.
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     # Если команда "добавить".
-                    affirmation = bot.add_phrase(author, text, chat_id)
+                    affirmation = bot.add_phrase(author, text)
                     bot.send_message(chat_id, affirmation or random.choice(bot.phrases))
                 else:
                     # Просто обращение.
