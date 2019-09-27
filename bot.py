@@ -1,22 +1,20 @@
 import vk_api
-from vk_api.longpoll import VkLongPoll, VkEventType
-from time import localtime, gmtime, strftime
+from vk_api.bot_longpoll import VkBotLongPoll
+from time import localtime, gmtime, strftime, sleep
 import apiai
 import random
 import requests
 import json
 
 
-SCOPE = 'offline,messages,docs'
 BOT_NAME = 'синдром'
 IS_ERROR = False
 
 
 # Получить сессию вк
-def get_session(l, p, a_id, sc):
-    session = vk_api.VkApi(l, p, a_id, sc, captcha_handler=captcha_handler)
+def get_session(login, password, token):
     try:
-        session.auth()
+        session = vk_api.VkApi(token=token)
         print('Authorised succesfully!')
         return session
     except vk_api.AuthError as error_msg:
@@ -27,7 +25,7 @@ def get_session(l, p, a_id, sc):
 def parse_credentials():
     """
     Вычитка параметров для логина
-    returns: [login, passwd, vk_app_id, df_token] 
+    returns: [..params] 
     """
     data = json.loads(open('creds.json', 'r').read())
     return [data[d] for d in data]
@@ -46,7 +44,7 @@ def request_df(token, text):
         response = responseJson['result']['fulfillment']['speech']
         return response
     else:
-        return 'Я Вас не совсем понял!'
+        return None
 
 
 def rewrite_file(phrase, bot_phrases):
@@ -81,8 +79,8 @@ class Shitposter():
 
 class BOT():
     def __init__(self):
-        [login, password, app_id, df_token] = parse_credentials()
-        self.session = get_session(login, password, app_id, SCOPE)
+        [vk_login, vk_token, df_token, vk_password, _] = parse_credentials()
+        self.session = get_session(vk_login, vk_password, vk_token)
 
         if not self.session:
             return None
@@ -112,14 +110,15 @@ def main():
     bot = BOT()
     if not bot.session or not bot.api:
         raise Exception('API или Сессия не получены')
-    longpoll = VkLongPoll(bot.session)
+    longpoll = VkBotLongPoll(bot.session, 140214622)
     
     for event in longpoll.listen():
-        if event.type == VkEventType.MESSAGE_NEW:
-            text = event.text.split()
-            chat_id = event.peer_id
-            user_id = event.user_id
-            msg_time = event.timestamp
+        if event.type.name == 'MESSAGE_NEW':
+            data = event.obj
+            text = data.text.split()
+            chat_id = data.peer_id
+            user_id = data.from_id
+            msg_time = data.date
             author = str(user_id)
             # Некому ответить, просто логируем
             if not chat_id or not user_id:
@@ -130,14 +129,14 @@ def main():
                 # Если команда "добавить"
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     phrase = ' '.join(text[2:])
-                    if not BOT_NAME in phrase.lower():
+                    if not (BOT_NAME in phrase.lower() or '@' in phrase.lower()):
                         rewrite_file(phrase, bot.bot_phrases)
                         affirmation = '[id'+author+'|Филтан], я добавил: "'+phrase+'"'
                         bot.send_message(chat_id, affirmation)
                 else:
                     message = ' '.join(text[1:])
                     phrase = request_df(bot.token, message)
-                    bot.send_message(chat_id, phrase)
+                    bot.send_message(chat_id, phrase or random.choice(bot.bot_phrases))
             else:              
                 if not user_id in bot.shitposters:
                     bot.shitposters[user_id] = Shitposter(user_id, msg_time)
@@ -160,7 +159,7 @@ if __name__ == "__main__":
         try:
             main()
         except Exception as e:
-            IS_ERROR = True
+            sleep(3)
             print('PIZDARIQUE')
             print(e)
             print(strftime("%d.%m.%Y %H:%M:%S", localtime()))
