@@ -32,7 +32,7 @@ def get_credentials():
         creds: Объект с данными для авторизации.
     """
 
-    return json.loads(open('creds.json', 'r').read())
+    return json.loads(open('creds.json', 'r', encoding='utf-8').read())
 
 
 def request_df(token, text):
