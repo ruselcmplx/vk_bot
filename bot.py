@@ -98,7 +98,7 @@ class BOT():
     def add_phrase(self, author, text):
         """Добавление фразы"""
         phrase = ' '.join(text[2:])
-        if not (my_name in phrase.lower() or '@' in phrase.lower()):
+        if not (self.name in phrase.lower() or '@' in phrase.lower()):
             rewrite_file(phrase, self.phrases)
             return '[id'+author + '|Филтан], я добавил: "'+phrase+'"'
             
@@ -125,7 +125,6 @@ def main():
     if not bot.session or not bot.api:
         raise Exception('API или Сессия не получены')
     longpoll = VkBotLongPoll(bot.session, 140214622)
-    my_name = bot.name
 
     for event in longpoll.listen():
         if event.type.name == 'MESSAGE_NEW':
@@ -139,7 +138,7 @@ def main():
             if not chat_id or not user_id:
                 print('chat_id: {} \n user_id: {}'.format(chat_id, user_id))
                 continue
-            if text and my_name in text[0].lower():
+            if text and bot.name in text[0].lower():
                 # Если обратились к боту.
                 if len(text) > 2 and 'добавь' in text[1].lower():
                     # Если команда "добавить".
