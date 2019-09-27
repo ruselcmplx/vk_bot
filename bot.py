@@ -1,8 +1,9 @@
-#import apiai
+import apiai
 import json
 import random
 from time import localtime, strftime, sleep
-#import vk_api
+import vk_api
+from vk_api.bot_longpoll import VkBotLongPoll
 
 
 def get_session(token):
@@ -123,7 +124,7 @@ def main():
     bot = BOT()
     if not bot.session or not bot.api:
         raise Exception('API или Сессия не получены')
-    longpoll = vk_api.bot_longpoll.VkBotLongPoll(bot.session, 140214622)
+    longpoll = VkBotLongPoll(bot.session, 140214622)
     my_name = bot.name
 
     for event in longpoll.listen():
