@@ -1,10 +1,14 @@
-import apiai
+#!/usr/bin/env python
+# -*- coding: utf-8 -*- 
+
 import json
 import os
 import random
+import re
 from time import localtime, strftime, sleep
 import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll
+from hangman import HANGMAN
 
 
 def get_session(token):
@@ -32,32 +36,6 @@ def get_credentials():
     """
 
     return json.loads(open('./mnt/creds.json', 'r', encoding='utf-8').read())
-
-
-def request_df(token, text):
-    """ Запрос на сервис Dialogflow.
-    Args:
-        token: Токен вк.
-        text: Текст сообщения.
-    Returns:
-        response: Текст ответа.
-    Raises:
-        None
-    """
-
-    try:
-        request = apiai.ApiAI(token).text_request()
-        request.lang = 'ru'
-        request.session_id = 'Syndrome'
-        request.query = text
-        responseJson = json.loads(request.getresponse().read().decode('utf-8'))
-        if text and responseJson['result'] and responseJson['result']['fulfillment']['speech']:
-            response = responseJson['result']['fulfillment']['speech']
-            return response
-        else:
-            return None
-    except:
-        return None
 
 
 def rewrite_file(phrase, bot_phrases):
@@ -88,9 +66,9 @@ class BOT():
             return None
 
         self.api = self.session.get_api()
-        self.token = creds.get('df_token')
         self.name = creds.get('name')
         self.shitposters = {}
+        self.game = None
         with open('./mnt/phrases.txt', encoding='utf8') as f:
             self.phrases = f.readlines()
 
@@ -118,6 +96,10 @@ class BOT():
                 random_id=random_id
             )
 
+    def get_user_info(self, user_id):
+        info = self.api.users.get(user_ids=[user_id])
+        return info and info[0]
+
 
 def main():
     bot = BOT()
@@ -133,21 +115,50 @@ def main():
             user_id = data.from_id
             msg_time = data.date
             author = str(user_id)
-            # Некому ответить, просто логируем.
+            # /roll
+            if text and text[0] == '/roll':
+                message = str(random.randint(0, int(text[1]) if len(text) > 1 and re.match(r'^([\s\d]+)$', text[1]) else 100))
+                bot.send_message(chat_id, message)
+                continue
+            # Закроем игру если прошло время
+            if bot.game and bot.game.game_start and msg_time - bot.game.game_start > 180:
+                bot.game = None
+            # Некому ответить, просто логируем
             if not chat_id or not user_id:
                 print('chat_id: {} \n user_id: {}'.format(chat_id, user_id))
                 continue
             if text and bot.name in text[0].lower():
-                # Если обратились к боту.
-                if len(text) > 2 and 'добавь' in text[1].lower():
-                    # Если команда "добавить".
-                    affirmation = bot.add_phrase(author, text)
-                    bot.send_message(chat_id, affirmation or random.choice(bot.phrases))
-                else:
-                    # Просто обращение.
-                    message = ' '.join(text[1:])
-                    phrase = request_df(bot.token, message)
-                    bot.send_message(chat_id, phrase or random.choice(bot.phrases))
+                # Если обратились к боту
+                if len(text) >= 2:
+                    if 'добавь' in text[1].lower():
+                        # Если команда "добавить".
+                        affirmation = bot.add_phrase(author, text)
+                        bot.send_message(chat_id, affirmation or random.choice(bot.phrases))
+                    elif 'виселица' in text[1].lower():
+                        message = ''
+                        if bot.game:
+                            user = bot.get_user_info(bot.game.player_id)
+                            message = '{name} уже играет'.format(name=user['first_name'])
+                        else:
+                            bot.game = HANGMAN(author, msg_time)
+                            shown_word = ' '.join(bot.game.shown_word)
+                            user = bot.get_user_info(author)
+                            message = '{name}, ты в игре, слово {word}'.format(name=user['first_name'], word=shown_word)
+                        bot.send_message(chat_id, message)
+                    else:
+                        # Просто обращение.
+                        message = ' '.join(text[1:])
+                        # phrase = request_df(bot.token, message)
+                        bot.send_message(chat_id, random.choice(bot.phrases))
+            elif bot.game and bot.game.player_id == author and text and len(text) == 1 and text[0]:
+                letter = text[0].strip().lower()
+                message = ''
+                if len(letter) == 1:
+                    res = bot.game.guess(letter)
+                    message = res[1]
+                    bot.send_message(chat_id, message)
+                    if not res[0]:
+                        bot.game = None                                                                    
             else:
                 # Обработчик шитпоста.
                 if not user_id in bot.shitposters:
