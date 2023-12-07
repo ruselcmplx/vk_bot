@@ -97,7 +97,7 @@ class HANGMAN():
                     '\nТы проиграл\nСлово {}'.format(self.word)
                 return [False, res_text]
 
-        return [not self.win, res_text]
+        return [self.win, res_text]
 
 
 if __name__ == "__main__":

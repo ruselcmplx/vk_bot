@@ -1,14 +1,34 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 import json
-import os
 import random
 import re
-from time import localtime, strftime, sleep
+from time import localtime, sleep, strftime
+import sys
+import os
+
 import vk_api
+from vk_api import VkUpload
 from vk_api.bot_longpoll import VkBotLongPoll
+from ai import ImageGenerator
+
 from hangman import HANGMAN
+
+
+class MessageData(dict):
+    def __init__(self, chat_id, user_id, user_name, msg_time, full_message_text, first_command, second_command, other_text):
+        self.chat_id = chat_id
+        self.user_id = user_id
+        self.user_name = user_name
+        self.msg_time = msg_time
+        self.full_message_text = full_message_text
+        self.first_command = first_command
+        self.second_command = second_command
+        self.other_text = other_text
+
+    def __repr__(self):
+        return self
 
 
 def get_session(token):
@@ -23,10 +43,10 @@ def get_session(token):
 
     try:
         session = vk_api.VkApi(token=token)
-        print('Authorised succesfully!')
+        print("Authorised succesfully!")
         return session
     except vk_api.AuthError as err:
-        raise Exception('Authorisation error: {}'.format(err))
+        raise Exception("Authorisation error: {}".format(err))
 
 
 def get_credentials():
@@ -35,7 +55,7 @@ def get_credentials():
         creds: Объект с данными для авторизации.
     """
 
-    return json.loads(open('./mnt/creds.json', 'r', encoding='utf-8').read())
+    return json.loads(open("./mnt/creds.json", "r", encoding="utf-8").read())
 
 
 def rewrite_file(phrase, bot_phrases):
@@ -44,8 +64,8 @@ def rewrite_file(phrase, bot_phrases):
         phrase: Новая фраза.
         bot_phrases: Загруженные фразы.
     """
-    with open('./mnt/phrases.txt', 'a', encoding='utf8') as f:
-        f.write(phrase+'\n')
+    with open("./mnt/phrases.txt", "a", encoding="utf8") as f:
+        f.write(phrase+"\n")
         bot_phrases.append(phrase)
 
 
@@ -58,27 +78,31 @@ class Shitposter():
 
 
 class BOT():
+    actions = ["добавь", "нарисуй", "виселица"]
+
     def __init__(self):
         """Инициализация бота"""
         creds = get_credentials()
-        self.session = get_session(creds.get('vk_token'))
-        if not self.session:
-            return None
-
+        self.session = get_session(creds.get("vk_token"))
         self.api = self.session.get_api()
-        self.name = creds.get('name')
+        if not self.session or not self.api:
+            raise Exception("API или Сессия не получены")
+        self.longpoll = VkBotLongPoll(self.session, creds.get("group_id"))
+        self.upload = VkUpload(self.session)
+        self.name = creds.get("name")
         self.shitposters = {}
         self.game = None
-        with open('./mnt/phrases.txt', encoding='utf8') as f:
+        self.image_generator = ImageGenerator()
+        with open("./mnt/phrases.txt", encoding="utf8") as f:
             self.phrases = f.readlines()
 
-    def add_phrase(self, author, text):
+    def add_phrase(self, author_id, text):
         """Добавление фразы"""
-        phrase = ' '.join(text[2:])
-        if not (self.name in phrase.lower() or '@' in phrase.lower()):
+        phrase = " ".join(text)
+        if not (self.name in phrase.lower() or "@" in phrase.lower()):
             rewrite_file(phrase, self.phrases)
-            return '[id'+author + '|Филтан], я добавил: "'+phrase+'"'
-            
+            return "[id{author_id}|Филтан], я добавил: \"{phrase}\"".format(author_id=author_id, phrase=phrase)
+
         return None
 
     def send_message(self, chat_id, message):
@@ -87,7 +111,7 @@ class BOT():
             random_id = random.randint(0, 2147483647*2)
             self.api.messages.setActivity(
                 peer_id=chat_id,
-                type='typing'
+                type="typing"
             )
             sleep(1)
             self.api.messages.send(
@@ -100,91 +124,196 @@ class BOT():
         info = self.api.users.get(user_ids=[user_id])
         return info and info[0]
 
+    def generate_image_and_send(self, chat_id, author_id, request_phrase):
+        attachments = []
+        try:
+            image_bytes = self.image_generator.get_image(request_phrase)
+            if (not image_bytes):
+                self.send_message(chat_id, "Не удалось загрузить изображение")
+                return
+            photo = self.upload.photo_messages(
+                photos=[image_bytes], peer_id=chat_id)[0]
+            attachments.append(
+                "photo{}_{}".format(photo["owner_id"], photo["id"])
+            )
+            random_id = random.randint(0, 2147483647*2)
+            self.api.messages.setActivity(
+                peer_id=chat_id,
+                type="typing"
+            )
+            sleep(3)
+            self.api.messages.send(
+                peer_id=chat_id,
+                attachment=",".join(attachments),
+                message="[id{author_id}|Филтан], я нарисовал какую-то хрень".format(
+                    author_id=author_id),
+                random_id=random_id
+            )
+        except Exception as error:
+            self.send_message(chat_id, "[id{author_id}|Филтан], не вышло, ${err_message}".format(
+                author_id=author_id, err_message=error))
+
+    def get_message_data_from_event(self, event) -> MessageData:
+        data = event.obj
+        user_id = str(data.from_id)
+        full_message_text = data.text
+        words = full_message_text.split()
+        user_info = self.get_user_info(user_id)
+        first_command = words[0].strip().lower() if len(words) > 0 else ""
+        second_command = words[1].strip().lower() if len(words) > 1 else ""
+        other_text = words[2:] if second_command in self.actions else words[1:]
+        return MessageData(
+            data.peer_id,
+            user_id,
+            user_info["first_name"],
+            data.date,
+            full_message_text,
+            first_command,
+            second_command,
+            other_text
+        )
+
+    def roll_handler(self, chat_id, user_name, roll_number):
+        print("{} rolled".format(user_name))
+        random_number = str(random.randint(0, int(roll_number)
+                                           if roll_number and re.match(r"^([\s\d]+)$", roll_number) else 100))
+        self.send_message(chat_id, random_number)
+
+    def bot_conversation_handler(self, data: MessageData):
+        user_id = data.user_id
+        chat_id = data.chat_id
+        if (data.second_command in self.actions):
+            print("Обработка команды \"{}\"".format(data.second_command))
+
+            if "добавь" == data.second_command:
+                # Если команда "добавить"
+                affirmation = self.add_phrase(user_id, data.other_text)
+                self.send_message(
+                    chat_id, affirmation or random.choice(self.phrases))
+                return
+
+            if "виселица" == data.second_command:
+                # Если команда "виселица"
+                message = ""
+                if self.game:
+                    if data.user_id == self.game.player_id:
+                        message = "Игра окончена, слово: {}".format(
+                            self.game.word)
+                        self.game = None
+                    else:
+                        message = "{name} уже играет".format(
+                            name=data.user_name)
+                    self.send_message(chat_id, message)
+                    return
+                else:
+                    self.game = HANGMAN(user_id, data.msg_time)
+                    shown_word = " ".join(self.game.shown_word)
+                    message = "{name}, ты в игре, у тебя 3 минуты, слово {word}".format(
+                        name=data.user_name, word=shown_word)
+                    self.send_message(chat_id, message)
+                    return
+
+            if "нарисуй" == data.second_command:
+                # Если команда "нарисовать"
+                phrase = " ".join(data.other_text)
+                self.send_message(chat_id, "Ща погодь")
+                self.generate_image_and_send(chat_id, user_id, phrase)
+                return
+        else:
+            if self.game and self.game.player_id == data.user_id and data.second_command:
+                # Если идет игра
+                print("Обработка игры {}".format(data.user_name))
+                letter = data.second_command
+                if len(letter) == 1:
+                    res = self.game.guess(letter)
+                    message = res[1]
+                    self.send_message(chat_id, message)
+                    # Если выиграли, заканчиваем игру
+                    if res[0]:
+                        self.game = None
+                return
+            else:
+                # Просто ответ
+                message = " ".join(data.other_text)
+                self.send_message(chat_id, random.choice(self.phrases))
+                return
+
+    def shitpost_handler(self, data: MessageData):
+        msg_time = data.msg_time
+        user = self.shitposters[data.user_id]
+        chat_id = data.chat_id
+        if msg_time - user.first_msg_time > 180:
+            user.first_msg_time = msg_time
+            user.shitpost_count = 0
+            return
+        if user.shitpost_count >= 7:
+            phrase = random.choice(self.phrases)
+            self.send_message(chat_id, phrase)
+            dt = strftime("%d.%m.%Y %H:%M:%S", localtime())
+            print(dt + " / " + str(user.user_id) +
+                  " shitposted in chat #" + str(chat_id) + "!")
+            user.shitpost_count = 0
+            return
+        user.shitpost_count += 1
+
 
 def main():
     bot = BOT()
-    if not bot.session or not bot.api:
-        raise Exception('API или Сессия не получены')
-    longpoll = VkBotLongPoll(bot.session, 140214622)
 
-    for event in longpoll.listen():
-        if event.type.name == 'MESSAGE_NEW':
-            data = event.obj
-            text = data.text.split()
-            chat_id = data.peer_id
-            user_id = data.from_id
-            msg_time = data.date
-            author = str(user_id)
-            # /roll
-            if text and text[0] == '/roll':
-                message = str(random.randint(0, int(text[1]) if len(text) > 1 and re.match(r'^([\s\d]+)$', text[1]) else 100))
-                bot.send_message(chat_id, message)
-                continue
+    for event in bot.longpoll.listen():
+        if event.type.name == "MESSAGE_NEW":
+            message_data = bot.get_message_data_from_event(event)
+            user_id = message_data.user_id
+
             # Закроем игру если прошло время
-            if bot.game and bot.game.game_start and msg_time - bot.game.game_start > 180:
+            if bot.game and bot.game.game_start and message_data.msg_time - bot.game.game_start > 180:
+                print("Game ended")
                 bot.game = None
-            # Некому ответить, просто логируем
-            if not chat_id or not user_id:
-                print('chat_id: {} \n user_id: {}'.format(chat_id, user_id))
+                bot.send_message(
+                    message_data.chat_id, "Игра окончена, слово: {}".format(bot.game.word))
+
+            # /roll
+            if message_data.first_command == "/roll":
+                roll_number = message_data.second_command
+                bot.roll_handler(message_data.chat_id,
+                                 message_data.user_name, roll_number)
                 continue
-            if text and bot.name in text[0].lower():
-                # Если обратились к боту
-                if len(text) >= 2:
-                    if 'добавь' in text[1].lower():
-                        # Если команда "добавить".
-                        affirmation = bot.add_phrase(author, text)
-                        bot.send_message(chat_id, affirmation or random.choice(bot.phrases))
-                    elif 'виселица' in text[1].lower():
-                        message = ''
-                        if bot.game:
-                            user = bot.get_user_info(bot.game.player_id)
-                            message = '{name} уже играет'.format(name=user['first_name'])
-                        else:
-                            bot.game = HANGMAN(author, msg_time)
-                            shown_word = ' '.join(bot.game.shown_word)
-                            user = bot.get_user_info(author)
-                            message = '{name}, ты в игре, слово {word}'.format(name=user['first_name'], word=shown_word)
-                        bot.send_message(chat_id, message)
-                    else:
-                        # Просто обращение.
-                        message = ' '.join(text[1:])
-                        # phrase = request_df(bot.token, message)
-                        bot.send_message(chat_id, random.choice(bot.phrases))
-            elif bot.game and bot.game.player_id == author and text and len(text) == 1 and text[0]:
-                letter = text[0].strip().lower()
-                message = ''
-                if len(letter) == 1:
-                    res = bot.game.guess(letter)
-                    message = res[1]
-                    bot.send_message(chat_id, message)
-                    if not res[0]:
-                        bot.game = None                                                                    
-            else:
-                # Обработчик шитпоста.
-                if not user_id in bot.shitposters:
-                    bot.shitposters[user_id] = Shitposter(user_id, msg_time)
-                else:
-                    user = bot.shitposters[user_id]
-                    if msg_time - user.first_msg_time > 180:
-                        user.first_msg_time = msg_time
-                        user.shitpost_count = 0
-                    if user.shitpost_count >= 7:
-                        phrase = random.choice(bot.phrases)
-                        bot.send_message(chat_id, phrase)
-                        dt = strftime("%d.%m.%Y %H:%M:%S", localtime())
-                        print(dt + ' / ' + str(user.user_id) +
-                              ' shitposted in chat #' + str(chat_id) + '!')
-                        user.shitpost_count = 0
-                    user.shitpost_count += 1
+
+            # Обращение к боту
+            if bot.name in message_data.first_command:
+                print("Bot asked")
+                bot.bot_conversation_handler(message_data)
+                continue
+
+            # Обработчик шитпоста
+            if not user_id in bot.shitposters:
+                print("Shitposter added")
+                bot.shitposters[user_id] = Shitposter(
+                    user_id, message_data.msg_time)
+                continue
+            elif user_id in bot.shitposters:
+                print("Shitpost handling")
+                bot.shitpost_handler(message_data)
+                continue
+
+            # Некому ответить, просто логируем
+            if not message_data.chat_id or not user_id:
+                print("Chat_id {} \n {}".format(
+                    message_data.chat_id, message_data.user_name))
+                continue
 
 
 if __name__ == "__main__":
     while True:
         try:
+            print("Started!")
             main()
         except Exception as err:
             sleep(10)
-            print('-'*50)
-            print('Error: {}'.format(err))
-            print(strftime("%d.%m.%Y %H:%M:%S", localtime()))
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(exc_type, fname, exc_tb.tb_lineno)
+            print("-"*50)
+            # print("Error: {}".format(err))
+            # print(strftime("%d.%m.%Y %H:%M:%S", localtime()))
             pass
