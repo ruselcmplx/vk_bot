@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*- 
 
 import json
@@ -12,13 +12,13 @@ from hangman import HANGMAN
 
 
 def get_session(token):
-    """ РџРѕР»СѓС‡РµРЅРёРµ СЃРµСЃСЃРёРё.
+    """ Получение сессии.
     Args:
-        token: РўРѕРєРµРЅ РїСЂРёР»РѕР¶РµРЅРёСЏ/РїР°Р±Р»РёРєР° РІРє.
+        token: Токен приложения/паблика вк.
     Returns:
-        session: РЎРµСЃСЃРёСЏ РІРє.
+        session: Сессия вк.
     Raises:
-        Exception: РћС€РёР±РєР° Р°РІС‚РѕСЂРёР·Р°С†РёРё.
+        Exception: Ошибка авторизации.
     """
 
     try:
@@ -30,19 +30,19 @@ def get_session(token):
 
 
 def get_credentials():
-    """ РџРѕР»СѓС‡РµРЅРёРµ РїР°СЂР°РјРµС‚СЂРѕРІ РґР»СЏ Р»РѕРіРёРЅР°.
+    """ Получение параметров для логина.
     Returns:
-        creds: РћР±СЉРµРєС‚ СЃ РґР°РЅРЅС‹РјРё РґР»СЏ Р°РІС‚РѕСЂРёР·Р°С†РёРё.
+        creds: Объект с данными для авторизации.
     """
 
     return json.loads(open('./mnt/creds.json', 'r', encoding='utf-8').read())
 
 
 def rewrite_file(phrase, bot_phrases):
-    """ РџРµСЂРµР·Р°РїРёСЃСЊ С„Р°Р№Р»Р° СЃ С„СЂР°Р·Р°РјРё.
+    """ Перезапись файла с фразами.
     Args:
-        phrase: РќРѕРІР°СЏ С„СЂР°Р·Р°.
-        bot_phrases: Р—Р°РіСЂСѓР¶РµРЅРЅС‹Рµ С„СЂР°Р·С‹.
+        phrase: Новая фраза.
+        bot_phrases: Загруженные фразы.
     """
     with open('./mnt/phrases.txt', 'a', encoding='utf8') as f:
         f.write(phrase+'\n')
@@ -51,7 +51,7 @@ def rewrite_file(phrase, bot_phrases):
 
 class Shitposter():
     def __init__(self, user_id, first_msg_time):
-        """РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С€РёС‚РїРѕСЃС‚РµСЂР°"""
+        """Инициализация шитпостера"""
         self.user_id = user_id
         self.shitpost_count = 0
         self.first_msg_time = first_msg_time
@@ -59,7 +59,7 @@ class Shitposter():
 
 class BOT():
     def __init__(self):
-        """РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р±РѕС‚Р°"""
+        """Инициализация бота"""
         creds = get_credentials()
         self.session = get_session(creds.get('vk_token'))
         if not self.session:
@@ -73,16 +73,16 @@ class BOT():
             self.phrases = f.readlines()
 
     def add_phrase(self, author, text):
-        """Р”РѕР±Р°РІР»РµРЅРёРµ С„СЂР°Р·С‹"""
+        """Добавление фразы"""
         phrase = ' '.join(text[2:])
         if not (self.name in phrase.lower() or '@' in phrase.lower()):
             rewrite_file(phrase, self.phrases)
-            return '[id'+author + '|Р¤РёР»С‚Р°РЅ], СЏ РґРѕР±Р°РІРёР»: "'+phrase+'"'
+            return '[id'+author + '|Филтан], я добавил: "'+phrase+'"'
             
         return None
 
     def send_message(self, chat_id, message):
-        """РњРµС‚РѕРґ РґР»СЏ РѕС‚РїСЂР°РІРєРё СЃРѕРѕР±С‰РµРЅРёСЏ message РІ С‡Р°С‚ c chat_id"""
+        """Метод для отправки сообщения message в чат c chat_id"""
         if message:
             random_id = random.randint(0, 2147483647*2)
             self.api.messages.setActivity(
@@ -104,7 +104,7 @@ class BOT():
 def main():
     bot = BOT()
     if not bot.session or not bot.api:
-        raise Exception('API РёР»Рё РЎРµСЃСЃРёСЏ РЅРµ РїРѕР»СѓС‡РµРЅС‹')
+        raise Exception('API или Сессия не получены')
     longpoll = VkBotLongPoll(bot.session, 140214622)
 
     for event in longpoll.listen():
@@ -115,30 +115,30 @@ def main():
             user_id = data.from_id
             msg_time = data.date
             author = str(user_id)
-            # РќРµРєРѕРјСѓ РѕС‚РІРµС‚РёС‚СЊ, РїСЂРѕСЃС‚Рѕ Р»РѕРіРёСЂСѓРµРј
+            # Некому ответить, просто логируем
             if not chat_id or not user_id:
                 print('chat_id: {} \n user_id: {}'.format(chat_id, user_id))
                 continue
             if text and bot.name in text[0].lower():
-                # Р•СЃР»Рё РѕР±СЂР°С‚РёР»РёСЃСЊ Рє Р±РѕС‚Сѓ
+                # Если обратились к боту
                 if len(text) >= 2:
-                    if 'РґРѕР±Р°РІСЊ' in text[1].lower():
-                        # Р•СЃР»Рё РєРѕРјР°РЅРґР° "РґРѕР±Р°РІРёС‚СЊ".
+                    if 'добавь' in text[1].lower():
+                        # Если команда "добавить".
                         affirmation = bot.add_phrase(author, text)
                         bot.send_message(chat_id, affirmation or random.choice(bot.phrases))
-                    elif 'РІРёСЃРµР»РёС†Р°' in text[1].lower():
+                    elif 'виселица' in text[1].lower():
                         message = ''
                         if bot.game:
                             user = bot.get_user_info(bot.game.player_id)
-                            message = '{name}, СѓР¶Рµ РёРіСЂР°РµС‚'.format(name=user['first_name'])
+                            message = '{name}, уже играет'.format(name=user['first_name'])
                         else:
                             bot.game = HANGMAN(author)
                             shown_word = ' '.join(bot.game.shown_word)
                             user = bot.get_user_info(author)
-                            message = '{name}, С‚С‹ РІ РёРіСЂРµ, СЃР»РѕРІРѕ {word}'.format(name=user['first_name'], word=shown_word)
+                            message = '{name}, ты в игре, слово {word}'.format(name=user['first_name'], word=shown_word)
                         bot.send_message(chat_id, message)
                     else:
-                        # РџСЂРѕСЃС‚Рѕ РѕР±СЂР°С‰РµРЅРёРµ.
+                        # Просто обращение.
                         message = ' '.join(text[1:])
                         # phrase = request_df(bot.token, message)
                         bot.send_message(chat_id, random.choice(bot.phrases))
@@ -153,7 +153,7 @@ def main():
                     if not res[0]:
                         bot.game = None                                                                    
             else:
-                # РћР±СЂР°Р±РѕС‚С‡РёРє С€РёС‚РїРѕСЃС‚Р°.
+                # Обработчик шитпоста.
                 if not user_id in bot.shitposters:
                     bot.shitposters[user_id] = Shitposter(user_id, msg_time)
                 else:
@@ -181,4 +181,3 @@ if __name__ == "__main__":
             print('Error: {}'.format(err))
             print(strftime("%d.%m.%Y %H:%M:%S", localtime()))
             pass
-

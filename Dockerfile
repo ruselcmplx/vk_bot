@@ -1,13 +1,21 @@
-FROM python:3
-
-ADD requirements.txt requirements.txt
-
-RUN pip install -r requirements.txt
-
-ADD bot.py bot.py
-ADD ai.py ai.py
-ADD hangman.py hangman.py
+﻿FROM python:3.10-slim
 
 ENV TZ=Europe/Moscow
 
-CMD [ "python", "bot.py" ]
+WORKDIR /app
+
+# Install system dependencies (timezone data) and Python dependencies
+RUN apt-get update \ 
+    && apt-get install -y --no-install-recommends tzdata \ 
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application source
+COPY bot.py ai.py hangman.py ./
+
+# `mnt` directory is expected to be mounted from the host, e.g.:
+#   docker run -v $(pwd)/mnt:/app/mnt IMAGE
+
+CMD ["python", "bot.py"]
