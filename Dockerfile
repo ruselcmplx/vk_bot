@@ -1,13 +1,11 @@
-﻿FROM python:3.10-slim
+FROM python:3.8-slim
 
 ENV TZ=Europe/Moscow
 
 WORKDIR /app
 
-# Install system dependencies (timezone data) and Python dependencies
-RUN apt-get update \ 
-    && apt-get install -y --no-install-recommends tzdata \ 
-    && rm -rf /var/lib/apt/lists/*
+# Упрощённый Dockerfile без apt-get (tzdata),
+# чтобы сборка проходила даже при проблемах с репозиториями внутри контейнера.
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
