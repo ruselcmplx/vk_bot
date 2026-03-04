@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import random
 import re
@@ -27,7 +27,7 @@ HANGMANPICS = [
 @dataclass
 class HANGMAN:
     player_id: int
-    game_start: int
+    game_start: int = 0
 
     def __post_init__(self) -> None:
         self.mistakes: int = 0
@@ -56,7 +56,7 @@ class HANGMAN:
                 shown_word[i] = self.word[i]
             if "_" not in self.shown_word:
                 self.win = True
-                res_text = f"РўС‹ РїРѕР±РµРґРёР»!\nРЎР»РѕРІРѕ {self.word}"
+                res_text = f"Ты победил!\nСлово {self.word}"
             else:
                 res_text = " ".join(shown_word)
         else:
@@ -64,12 +64,16 @@ class HANGMAN:
                 self.mistakes += 1
                 self.hangman_pic = HANGMANPICS[self.mistakes]
                 res_text = (
-                    f"{self.hangman_pic}\nРќРµС‚ СЃРѕРІРїР°РґРµРЅРёР№, РёСЃРїРѕР»СЊР·РѕРІР°РЅРЅС‹Рµ Р±СѓРєРІС‹: "
+                    f"{self.hangman_pic}\nНет совпадений, использованные буквы: "
                     f"{', '.join(self.used_letters)}\n" + " ".join(self.shown_word)
                 )
             else:
-                self.hangman_pic = HANGMANPICS[self.mistakes + 1]
-                res_text = f"{self.hangman_pic}\nРўС‹ РїСЂРѕРёРіСЂР°Р»\nРЎР»РѕРІРѕ {self.word}"
+                # Финальное состояние — поражение
+                self.mistakes += 1
+                # Защита от выхода за пределы списка картинок
+                idx = min(self.mistakes, len(HANGMANPICS) - 1)
+                self.hangman_pic = HANGMANPICS[idx]
+                res_text = f"{self.hangman_pic}\nТы проиграл\nСлово {self.word}"
                 return False, res_text
 
         return self.win, res_text
@@ -79,13 +83,13 @@ if __name__ == "__main__":
     import time
 
     game = HANGMAN(player_id=1, game_start=int(time.time()))
-    input_phrase = "РЎР»РѕРІРѕ: " + " ".join(game.shown_word)
+    input_phrase = "Слово: " + " ".join(game.shown_word)
     while (not game.win) and game.mistakes < 6:
         guess_letter = input(input_phrase + "\n").strip()
         if guess_letter and len(guess_letter) == 1:
             win, res = game.guess(guess_letter)
             input_phrase = res
         else:
-            input_phrase = "Р’РІРµРґРёС‚Рµ Р±СѓРєРІСѓ"
+            input_phrase = "Введите букву"
 
     input("You win\n" if game.win else game.hangman_pic + "\nYou lost\n")

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import io
 import json
@@ -14,18 +14,18 @@ API_URL = (
 
 
 def _load_creds(path: Path) -> dict:
-    """Р—Р°РіСЂСѓР·РєР° JSON СЃ РєСЂРµРґР°РјРё РёР· СѓРєР°Р·Р°РЅРЅРѕРіРѕ РїСѓС‚Рё."""
+    """Загрузка JSON с кредами из указанного пути."""
     try:
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        raise RuntimeError(f"Р¤Р°Р№Р» СЃ РєСЂРµРґР°РјРё РЅРµ РЅР°Р№РґРµРЅ РїРѕ РїСѓС‚Рё {path}") from None
+        raise RuntimeError(f"Файл с кредами не найден по пути {path}") from None
     except json.JSONDecodeError as exc:
-        raise RuntimeError(f"РќРµРєРѕСЂСЂРµРєС‚РЅС‹Р№ JSON РІ С„Р°Р№Р»Рµ РєСЂРµРґРѕРІ РїРѕ РїСѓС‚Рё {path}") from exc
+        raise RuntimeError(f"Некорректный JSON в файле кредитов по пути {path}") from exc
 
 
 class ImageGenerator:
-    """РџСЂРѕСЃС‚РѕР№ РІСЂР°РїРїРµСЂ РЅР°Рґ HF endpoint РґР»СЏ РіРµРЅРµСЂР°С†РёРё РёР·РѕР±СЂР°Р¶РµРЅРёР№."""
+    """Простой враппер над HF endpoint для генерации изображений."""
 
     def __init__(self, creds_path: Optional[Path] = None) -> None:
         if creds_path is None:
@@ -39,7 +39,7 @@ class ImageGenerator:
         return f"Bearer {token}" if token else ""
 
     def get_image(self, payload: str) -> Optional[io.BytesIO]:
-        """Р—Р°РїСЂРѕСЃРёС‚СЊ РёР·РѕР±СЂР°Р¶РµРЅРёРµ РїРѕ С‚РµРєСЃС‚РѕРІРѕРјСѓ РїСЂРѕРјРїС‚Сѓ Рё РІРµСЂРЅСѓС‚СЊ Р±СѓС„РµСЂ Р±Р°Р№С‚."""
+        """Запросить изображение по текстовому промпту и вернуть буфер байт."""
         try:
             response = requests.post(
                 API_URL,
@@ -51,16 +51,16 @@ class ImageGenerator:
                 timeout=300,
             )
         except Exception as error:
-            print(f"РћС€РёР±РєР° РѕС‚РІРµС‚Р° СЃРµСЂРІРµСЂР°: {error}")
+            print(f"Ошибка ответа сервера: {error}")
             return None
 
         if response.status_code != 200:
-            print(f"РћС€РёР±РєР° РѕС‚РІРµС‚Р° СЃРµСЂРІРµСЂР°: {response.text}")
+            print(f"Ошибка ответа сервера: {response.text}")
             return None
 
         image_bytes = response.content
         if not image_bytes:
-            print(f"РќРµС‚ Р±Р°Р№С‚РєРѕРґР° РёР·РѕР±СЂР°Р¶РµРЅРёСЏ: {response}")
+            print(f"Нет байткода изображения: {response}")
             return None
 
         return io.BytesIO(image_bytes)
