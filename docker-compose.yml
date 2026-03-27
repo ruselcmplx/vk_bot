@@ -5,11 +5,5 @@ services:
     build: .
     container_name: vk-bot
     restart: unless-stopped
-    # Если образ уже в Docker Hub, вместо build используйте:
-    # image: your-dockerhub-login/vk-bot:latest
     volumes:
-      - ./creds.json:/mnt/creds.json:ro
-    environment:
-      # Добавьте при необходимости переменные окружения:
-      # - SOME_ENV=value
-
+      - ./config:/app/config

@@ -1,55 +1,69 @@
-﻿# VK Bot - Modernized Python 3.10 Setup
+# VK Bot (Go)
 
-## Local run
+## Что делает бот
 
-1. Create and activate a virtual environment (Python 3.10):
+- отвечает на обращения в чате VK по имени бота;
+- команда `добавь` добавляет новую фразу в `phrases.txt`;
+- команда `виселица` запускает игру;
+- авто-ответ при "шитпосте" (много сообщений за короткое время).
 
-   ```bash
-   python -m venv .venv
-   .venv\\Scripts\\activate  # Windows
-   # source .venv/bin/activate  # Linux/macOS
-   ```
+## Требования
 
-2. Install dependencies:
+- Go 1.25+
+- Токен сообщества VK (group token) с правами на сообщения
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+## Архитектура
 
-3. Prepare the `mnt` directory in the project root with:
+- `cmd/vk-bot`: entrypoint приложения
+- `internal/app`: orchestration, hot-reload, lifecycle
+- `internal/config`: загрузка `creds.json` + hot reload
+- `internal/vk`: адаптер над `vksdk`
+- `internal/bot`: доменная логика обработки сообщений
+- `internal/hangman`: логика игры
+- `internal/storage`: чтение/запись файлов фраз и слов
 
-   - `creds.json` - contains VK token, group_id, name, HF token, etc.
-   - `phrases.txt` - list of bot phrases (one per line).
-   - `nouns.txt` - list of nouns for the hangman game (one per line).
+## Конфигурация
 
-4. Run the bot:
+Поддерживается только **горячая конфигурация через файлы** (удобно для контейнера):
 
-   ```bash
-   python bot.py
-   ```
+- `config/creds.json` — параметры подключения к VK и имя бота
+- `config/phrases.txt` — фразы (обновляются через команду `добавь`)
+- `config/nouns.txt` — слова для виселицы
+
+### Формат `creds.json`
+
+По умолчанию ожидается `./config/creds.json`:
+
+```json
+{
+  "vk_token": "group_token",
+  "group_id": "140214622",
+  "name": "синдром"
+}
+```
+
+## Локальный запуск
+
+```bash
+go mod tidy
+go run ./cmd/vk-bot
+```
 
 ## Docker
 
-1. Build the image (Python 3.10-slim base):
+```bash
+docker compose up --build -d
+```
 
-   ```bash
-   docker build -t vk-bot .
-   ```
+Контейнер ожидает, что `./config` смонтирован в `/app/config`.
 
-2. Run the container, mounting `mnt` from the host:
+## Hot reload
 
-   ```bash
-   docker run --rm \
-     -v ${PWD}/mnt:/app/mnt \
-     vk-bot
-   ```
+Приложение периодически перечитывает `config/creds.json`.
+Если изменяются `vk_token`, `group_id` или `name`, бот автоматически перезапускает longpoll без ручного рестарта контейнера.
 
-   On Windows PowerShell, use:
+## Тесты
 
-   ```powershell
-   docker run --rm `
-     -v ${PWD}/mnt:/app/mnt `
-     vk-bot
-   ```
-
-The container expects `creds.json`, `phrases.txt` and `nouns.txt` to be available in `/app/mnt`.
+```bash
+go test ./...
+```
