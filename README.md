@@ -37,7 +37,7 @@
 ```json
 {
   "vk_token": "group_token",
-  "group_id": "140214622",
+  "group_id": "group_id",
   "name": "синдром"
 }
 ```
