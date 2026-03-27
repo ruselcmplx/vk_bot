@@ -8,6 +8,7 @@ import (
 
 	"vk_bot/internal/bot"
 	"vk_bot/internal/config"
+	"vk_bot/internal/imagegen"
 	"vk_bot/internal/storage"
 	vkclient "vk_bot/internal/vk"
 )
@@ -54,6 +55,17 @@ func Run(ctx context.Context, credsPath string, logger *slog.Logger) error {
 			case <-time.After(10 * time.Second):
 				continue
 			}
+		}
+		if runtimeCfg.HFToken != "" {
+			gen, err := imagegen.NewHuggingFace(runtimeCfg.HFToken, runtimeCfg.HFImageModel)
+			if err != nil {
+				logger.Error("cannot init image generator", "error", err)
+			} else {
+				b.SetImageGenerator(gen)
+				logger.Info("image generator enabled", "model", gen.Model())
+			}
+		} else {
+			logger.Info("image generator disabled: HF_TOKEN is empty")
 		}
 
 		runCtx, cancel := context.WithCancel(ctx)

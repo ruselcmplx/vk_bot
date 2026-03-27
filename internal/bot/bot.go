@@ -38,6 +38,12 @@ type Bot struct {
 	shitposters map[int]*shitposter
 	game        *hangman.Game
 	startedAt   time.Time
+	image       ImageGenerator
+}
+
+type ImageGenerator interface {
+	Model() string
+	Generate(ctx context.Context, prompt string) ([]byte, error)
 }
 
 func New(cfg Config, store *storage.Store, client vk.Client, logger *slog.Logger) (*Bot, error) {
@@ -54,6 +60,10 @@ func New(cfg Config, store *storage.Store, client vk.Client, logger *slog.Logger
 		shitposters: map[int]*shitposter{},
 		startedAt:   time.Now(),
 	}, nil
+}
+
+func (b *Bot) SetImageGenerator(gen ImageGenerator) {
+	b.image = gen
 }
 
 func (b *Bot) Listen(ctx context.Context) error {
@@ -142,6 +152,9 @@ func (b *Bot) handleMessage(text string, chatID int, userID int, msgTime int64) 
 		case strings.Contains(strings.ToLower(parts[1]), "виселица"):
 			b.logger.Info("hangman start command", "from_id", userID, "chat_id", chatID)
 			b.sendMessage(chatID, b.handleHangmanStart(userID))
+		case strings.Contains(strings.ToLower(parts[1]), "нарисуй"):
+			b.logger.Info("image command", "from_id", userID, "chat_id", chatID)
+			b.handleDrawCommand(chatID, parts)
 		default:
 			b.logger.Info("generic bot command fallback", "from_id", userID, "chat_id", chatID)
 			b.sendMessage(chatID, b.randomPhrase())
@@ -250,4 +263,44 @@ func (b *Bot) trackAndMaybeReplyShitpost(userID int, msgTime int64, chatID int) 
 	user.ShitpostCount++
 	b.logger.Info("shitpost counter", "user_id", user.UserID, "chat_id", chatID, "count", user.ShitpostCount, "window_start", user.FirstMessageAt)
 	return phrase
+}
+
+func (b *Bot) handleDrawCommand(chatID int, parts []string) {
+	if b.image == nil {
+		b.sendMessage(chatID, "Генерация изображений не настроена (проверь HF_TOKEN в creds.json).")
+		return
+	}
+	if len(parts) < 3 {
+		b.sendMessage(chatID, fmt.Sprintf(
+			"Использование: %s нарисуй <описание>\nТекущая модель: %s",
+			b.cfg.Name,
+			b.image.Model(),
+		))
+		return
+	}
+
+	prompt := strings.TrimSpace(strings.Join(parts[2:], " "))
+	if prompt == "" {
+		b.sendMessage(chatID, fmt.Sprintf(
+			"Использование: %s нарисуй <описание>\nТекущая модель: %s",
+			b.cfg.Name,
+			b.image.Model(),
+		))
+		return
+	}
+
+	b.sendMessage(chatID, "Рисую, подожди немного...")
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	imageBytes, err := b.image.Generate(ctx, prompt)
+	if err != nil {
+		b.logger.Error("image generation failed", "error", err, "prompt", prompt, "model", b.image.Model())
+		b.sendMessage(chatID, "Не получилось сгенерировать изображение, попробуй другой запрос.")
+		return
+	}
+	if err := b.client.SendPhoto(chatID, imageBytes, ""); err != nil {
+		b.logger.Error("send generated photo failed", "error", err, "model", b.image.Model())
+		b.sendMessage(chatID, "Картинка сгенерирована, но не получилось отправить ее в чат.")
+	}
 }

@@ -5,6 +5,7 @@
 - отвечает на обращения в чате VK по имени бота;
 - команда `добавь` добавляет новую фразу в `phrases.txt`;
 - команда `виселица` запускает игру;
+- команда `нарисуй <описание>` генерирует изображение через Hugging Face Inference Providers;
 - авто-ответ при "шитпосте" (много сообщений за короткое время).
 
 ## Требования
@@ -38,9 +39,14 @@
 {
   "vk_token": "group_token",
   "group_id": "group_id",
-  "name": "синдром"
+  "name": "синдром",
+  "HF_TOKEN": "hf_xxx",
+  "hf_image_model": "black-forest-labs/FLUX.1-dev"
 }
 ```
+
+- `HF_TOKEN` — токен Hugging Face для Inference Providers
+- `hf_image_model` — модель для команды `нарисуй` (если пусто, используется `black-forest-labs/FLUX.1-dev`)
 
 ## Локальный запуск
 
